@@ -1,5 +1,3 @@
-# This is a basic workflow to help you get started with Actions
-
 name: code_check
 
 # Controls when the action will run. 
@@ -18,27 +16,6 @@ jobs:
     steps:
         - name: Python Pylin GitHub Action
           uses: vcoder4c/git_pylint@v3
-            env:
-              DEFAULT_TARGET_BRANCH: master
+          env:
+            DEFAULT_TARGET_BRANCH: master
     
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      # - name: check_action
-      # - uses: actions/checkout@v2
-      # - name: Setup Python
-      #   uses: actions/setup-python@v1
-      #   with:
-      #     python-version: 3.7.4
-      #     architecture: x64
-      # - name: Install flake8 and pylint
-      #   run: pip install flake8 pylint
-      # # Runs a single command using the runners shell
-      # - name: check
-      #   run: |
-      #     pylint ./polar
-      #     flake8 ./polar
-
-      # # Runs a set of commands using the runners shell
-      # - name: Run a multi-line script
-      #   run: |
-      #     echo Add other actions to build,
-      #     echo test, and deploy your project.
