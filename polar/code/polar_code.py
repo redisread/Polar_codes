@@ -44,18 +44,33 @@ class PolarGA(object):
         self.cross_rate = CROSS_RATE
         self.mutate_rate = MUTATE_RATE
 
+        self.NUM_SLICE = 1000
+        self.SNR_MIN = 0.5
+        self.SNR_MAX = 5
+        self.SNR_SCLCE = (self.SNR_MAX - self.SNR_MIN) / self.NUM_SLICE
+        self.DNA_size = int(np.log2(self.NUM_SLICE)) 
+
         # 初始化极化码类
         self.snr = SNR
         self.channel = BpskAwgnChannel(self.snr, False)
         self.pc = PolarCode(self.n, self.K, self.channel, "PW")
 
         # 随机生成种群极化序列
-        self.pop = np.vstack([np.random.permutation(self.DNA_size)
+        self.pop = np.vstack([np.random.randint(0,2,self.DNA_size)
                               for _ in range(self.pop_size)])
+
+    def get_SNR(self,DNA):
+        n = len(DNA)
+        num = 0
+        for idx,val in enumerate(DNA):
+            num = num + val * (2 ** (n - 1 - idx))
+        return self.SNR_MIN + num * self.SNR_SCLCE
 
     def translateDNA(self, DNA):
         """翻译DNA，直接返回极化下标序列"""
-        return DNA
+        snr = self.get_SNR(DNA)
+        seq = Construct.Bhattacharyya(self.N,snr)
+        return np.argsort(seq)
 
     def encode_decode(self, message):
         """比特混合+编码解码"""
@@ -75,12 +90,12 @@ class PolarGA(object):
     def get_fitness(self):
         """获取适应度"""
         # 对每一个极化序列进行译码
-        # compare = np.zeros((self.pop_size,self.DNA_size))
         compare = np.zeros(self.pop_size)
         message = np.random.randint(0, 2, self.K)
         # 直接对所有的极化序列进行译码，不用构造
         for child in range(self.pop_size):
-            A = self.pc.do_construct(self.pop[child])
+            seq = self.translateDNA(self.pop[child])
+            A = self.pc.do_construct(seq)
             u, u_message = self.encode_decode(message)
             uc = (message == u_message[A])
             compare[child] = uc.sum()
@@ -97,22 +112,15 @@ class PolarGA(object):
 
     def crossover(self, parent, pop):
         if np.random.rand() < self.cross_rate:
-            # select another individual from pop
-            i_ = np.random.randint(0, self.pop_size, size=1)
-            cross_points = np.random.randint(0, 2, self.DNA_size).astype(
-                np.bool)   # choose crossover points
-            # find the city number
-            keep_DNA = parent[~cross_points]
-            swap_DNA = pop[i_, np.isin(pop[i_].ravel(), keep_DNA, invert=True)]
-            parent[:] = np.concatenate((keep_DNA, swap_DNA))
+            i_ = np.random.randint(0, self.pop_size, size=1)                        # select another individual from pop
+            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)   # choose crossover points
+            parent[cross_points] = pop[i_, cross_points]                            # mating and produce one child
         return parent
 
     def mutate(self, child):
         for point in range(self.DNA_size):
             if np.random.rand() < self.mutate_rate:
-                swap_point = np.random.randint(0, self.DNA_size)
-                swapA, swapB = child[point], child[swap_point]
-                child[point], child[swap_point] = swapB, swapA
+                child[point] = np.random.randint(0,self.DNA_size)  # choose a random ASCII index
         return child
 
     def evolve(self):
@@ -125,27 +133,21 @@ class PolarGA(object):
             parent[:] = child
         self.pop = pop
 
-    def compute(self, DNA):
+    def compute(self, seq):
         message = np.random.randint(0, 2, self.K)
-        # message = np.ones(self.K)
-        A = self.pc.do_construct(DNA)
+        A = self.pc.do_construct(seq)
         u, u_message = self.encode_decode(message)
         uc = (message == u_message[A])
         return uc.sum() / len(uc)
 
-    def do_compute(self, DNA):
-        message = np.random.randint(0, 2, self.K)
-        # message = np.ones(self.K)
-        A = self.pc.do_construct(DNA)
-        u, u_message = self.encode_decode(message)
-        uc = (message == u_message[A])
-
-        # uc = (message == u_message[-self.K:])
-        print("message: ", message)
-        print("u: ", u)
-        print("u_message: ", u_message)
-        print(uc)
-        return uc.sum() / len(uc)
+    def Valid_SNR(self,seq):
+        sum = 0
+        for _ in range(3):
+            message = np.random.randint(0, 2, self.K)
+            A = self.pc.do_construct(seq)
+            u, u_message = self.encode_decode(message)
+            sum =  sum + (message == u_message[A]).all()
+        return sum / 3
 
 
 def Genetic_Algorithm(N,SNR):
@@ -161,16 +163,16 @@ def Genetic_Algorithm(N,SNR):
     for generation in range(GENERATIONS):
         fitness = pga.get_fitness()
         best_DNA = pga.pop[np.argmax(fitness)]
-        # print("Gen ", generation, " best DNA: ", best_DNA)
-        rate = 0
-        for _ in range(Valid_t):
-            rate = rate + pga.compute(best_DNA)
-        rate = rate / Valid_t
-        # print("Rate:", rate)
+        design_snr = pga.get_SNR(best_DNA)
+        best_seq = pga.translateDNA(best_DNA)
+        print("Gen ", generation, "best design-snr：",
+                design_snr," best Sequence: ", best_seq)
+        rate = pga.Valid_SNR(best_seq)
+        print("Rate:", rate)
         if rate == 1:
             break
         pga.evolve()
-    return best_DNA
+    return best_seq
 
 
 class PolarCode(object):
@@ -815,17 +817,18 @@ def hhh():
     print("hhh")
 
 if __name__ == "__main__":
-    # n = 6
-    # N = 2 ** n
-    # R = 0.5
-    # K = int(N*R)
-    # SNR = 5
-    # T = 100
-    # # BathZ MonteCalo GA Genetic
-    # # PolarTest.test_BPSK_AWGN("BathZ",N,K,SNR)
+    n = 6
+    N = 2 ** n
+    R = 0.5
+    K = int(N*R)
+    SNR = 5
+    T = 100
+    # BathZ MonteCalo GA Genetic
+    # PolarTest.test_BPSK_AWGN("BathZ",N,K,SNR)
 
-    # r = PolarTest.test_BPSK_AWGN_BATCH("Genetic",N,K,T,SNR)
-    # print(r)
+    r = PolarTest.test_BPSK_AWGN_BATCH("Genetic",N,K,T,SNR)
+    print(r)
+    exit(1)
 
 
     cmethods = ["BathZ","MonteCalo","GA","Genetic"]
