@@ -48,12 +48,12 @@ class PolarGA(object):
         self.pc = PolarCode(self.n, self.K, self.channel, "PW")
 
         # 随机生成种群极化序列
-        self.pop = np.vstack([np.random.permutation(self.DNA_size)
+        self.pop = np.vstack([np.random.randn(self.DNA_size)
                               for _ in range(self.pop_size)])
 
     def translateDNA(self, DNA):
         """翻译DNA，直接返回极化下标序列"""
-        return DNA
+        return np.argsort(DNA)
 
     def encode_decode(self, message):
         """比特混合+编码解码"""
@@ -78,7 +78,8 @@ class PolarGA(object):
         message = np.random.randint(0, 2, self.K)
         # 直接对所有的极化序列进行译码，不用构造
         for child in range(self.pop_size):
-            A = self.pc.do_construct(self.pop[child])
+            seq = np.argsort(self.pop[child])
+            A = self.pc.do_construct(seq)
             u, u_message = self.encode_decode(message)
             uc = (message == u_message[A])
             compare[child] = uc.sum()
@@ -95,23 +96,33 @@ class PolarGA(object):
 
     def crossover(self, parent, pop):
         if np.random.rand() < self.cross_rate:
-            # select another individual from pop
-            i_ = np.random.randint(0, self.pop_size, size=1)
-            cross_points = np.random.randint(0, 2, self.DNA_size).astype(
-                np.bool)   # choose crossover points
-            # find the city number
-            keep_DNA = parent[~cross_points]
-            swap_DNA = pop[i_, np.isin(pop[i_].ravel(), keep_DNA, invert=True)]
-            parent[:] = np.concatenate((keep_DNA, swap_DNA))
+            i_ = np.random.randint(0, self.pop_size, size=1)                        # select another individual from pop
+            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)   # choose crossover points
+            parent[cross_points] = pop[i_, cross_points]                            # mating and produce one child
         return parent
+        # if np.random.rand() < self.cross_rate:
+        #     # select another individual from pop
+        #     i_ = np.random.randint(0, self.pop_size, size=1)
+        #     cross_points = np.random.randint(0, 2, self.DNA_size).astype(
+        #         np.bool)   # choose crossover points
+        #     # find the city number
+        #     keep_DNA = parent[~cross_points]
+        #     swap_DNA = pop[i_, np.isin(pop[i_].ravel(), keep_DNA, invert=True)]
+        #     parent[:] = np.concatenate((keep_DNA, swap_DNA))
+        # return parent
 
     def mutate(self, child):
         for point in range(self.DNA_size):
             if np.random.rand() < self.mutate_rate:
-                swap_point = np.random.randint(0, self.DNA_size)
-                swapA, swapB = child[point], child[swap_point]
-                child[point], child[swap_point] = swapB, swapA
+                child[point] = np.random.randint(0,self.DNA_size)  # choose a random ASCII index
         return child
+
+        # for point in range(self.DNA_size):
+        #     if np.random.rand() < self.mutate_rate:
+        #         swap_point = np.random.randint(0, self.DNA_size)
+        #         swapA, swapB = child[point], child[swap_point]
+        #         child[point], child[swap_point] = swapB, swapA
+        # return child
 
     def evolve(self):
         fitness = self.get_fitness()
@@ -160,7 +171,7 @@ def test_PGA():
     MUTATION_RATE = 0.02
 
     # 极化码长度的幂次
-    n = 6
+    n = 8
     # 极化码长度
     N = 2 ** n
     # 极化码的码率
@@ -168,7 +179,7 @@ def test_PGA():
     K = int(N * R)
 
     # 信噪比
-    SNR = 2
+    SNR = 0.5
 
     # 迭代的子代数量
     GENERATIONS = 20
@@ -178,11 +189,11 @@ def test_PGA():
     # 开始迭代
     for generation in range(GENERATIONS):
         fitness = pga.get_fitness()
-        best_DNA = pga.pop[np.argmax(fitness)]
+        best_DNA = pga.translateDNA(pga.pop[np.argmax(fitness)])
         print("Gen ", generation, " best DNA: ", best_DNA)
         # print("Rate:",pga.compute([3,5,6,7]))
         # best_DNA = [0,1,2,4,3,5,6,7]
-        rate = pga.compute(best_DNA)
+        rate = pga.do_compute(best_DNA)
         # rate_z = pga.compute_z(best_DNA)
         # rate_r = pga.compute_r(best_DNA)
         print("Rate:", rate)
