@@ -255,6 +255,12 @@ $$
 
 译码？
 
+### 参考
+
+
+
+
+
 
 
 ## 极化码演示
@@ -268,3 +274,12 @@ $$
 https://w3.iams.sinica.edu.tw/lab/wbtzeng/labtech/greek.htm
 
 https://www.zybuluo.com/codeep/note/163962
+
+
+
+
+
+## 问题：
+
+- 什么是BPSK-AWGN？
+- 
