@@ -15,6 +15,8 @@ from polar.libcommon.utils import PolarMatrix
 from polar.libcommon.utils import get_sequence
 from polar.channels.bec_channel import BecChannel
 from polar.channels.bpsk_awgn_channel import BpskAwgnChannel
+from polar.channels.bsc_channel import BscChannel
+
 
 # 算法4：遗传算法
 # INPUT：N：码长，SNR：信道比
@@ -174,6 +176,29 @@ def Genetic_Algorithm(N,SNR):
         pga.evolve()
     return best_seq
 
+def Genetic_Alm(N,SNR,POP_SIZE,CROSS_RATE,MUTATE_RATE):
+    """遗传算法"""
+    # POP_SIZE,CROSS_RATE,MUTATION_RATE= 50,0.2,0.02
+    n = int(np.log2(N))
+    R = 0.5
+    K = int(N * R)
+    GENERATIONS = 10
+    Valid_t = 3
+    pga = PolarGA(N, K, SNR, POP_SIZE, CROSS_RATE, MUTATE_RATE)
+    # 开始迭代
+    for generation in range(GENERATIONS):
+        fitness = pga.get_fitness()
+        best_DNA = pga.pop[np.argmax(fitness)]
+        design_snr = pga.get_SNR(best_DNA)
+        best_seq = pga.translateDNA(best_DNA)
+        print("Gen ", generation, "best design-snr：",
+                design_snr," best Sequence: ", best_seq)
+        rate = pga.Valid_SNR(best_seq)
+        print("Rate:", rate)
+        if rate == 1:
+            break
+        pga.evolve()
+    return best_seq
 
 class PolarCode(object):
     """极化码类"""
@@ -183,7 +208,7 @@ class PolarCode(object):
         16: np.asarray([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], dtype='uint8'),
     }
 
-    def __init__(self, n, K, channel, construction_method,CRC_len = 0):
+    def __init__(self, n, K, channel, construction_method,decode_method = "SC",CRC_len = 0):
         """
         :description: 构造函数
         :param  
@@ -200,6 +225,7 @@ class PolarCode(object):
         self._K = K
         self._channel = channel
         self._construction_method = construction_method
+        self._decode_method = decode_method
         self._K_minus_CRC = K
         self._CRC_len = CRC_len
 
@@ -259,7 +285,8 @@ class PolarCode(object):
 
     def decode(self, y_message,way = 0):
         # return self.sc_decode(y_message)
-        return self._scl_decode(y_message)
+        return self._decoding_methods[self._decode_method](y_message)
+        # return self._scl_decode(y_message)
 
     def sc_decode(self, y_message):
         """连续消除译码"""
@@ -744,7 +771,23 @@ class PolarTest(object):
         print((out_u == message).all())
         print((message == u_message[-K:]).all())
         # out_u == message
-    
+
+    @staticmethod
+    def test_batch(sequence,N,K,T,SNR = 5):
+        c_sum = 0
+        channel = BpskAwgnChannel(SNR, False)
+        pc = PolarCode(n, K, channel, "BathZ")
+        A = pc.do_construct(sequence)
+        for _ in range(T):
+            message = np.random.randint(0, 2, K)
+            u = pc.fill_messgae(message)
+
+            u_message = PolarTest.encode_decode(pc,channel,u)
+
+            out_u = u_message[A]
+            c_sum = c_sum + (out_u == message).all()
+        return c_sum / T
+
     @staticmethod
     def test_BPSK_AWGN_BATCH(construct_method,N,K,T,SNR = 5):
         channel = BpskAwgnChannel(SNR, False)
@@ -766,6 +809,27 @@ class PolarTest(object):
             c_sum = c_sum + (out_u == message).all()
         return c_sum / T
 
+    @staticmethod
+    def test_BSC_BATCH(construct_method,N,K,T,SNR = 5):
+        # channel = BpskAwgnChannel(SNR, False)
+        channel = BscChannel(SNR)
+
+        # BathZ MonteCalo GA Genetic
+        n = int(np.log2(N))
+        pc = PolarCode(n, K, channel, construct_method)
+
+        # 构造序列
+        A = pc.construct()
+        c_sum = 0
+        for _ in range(T):
+            message = np.random.randint(0, 2, K)
+            u = pc.fill_messgae(message)
+
+            u_message = PolarTest.encode_decode(pc,channel,u)
+
+            out_u = u_message[A]
+            c_sum = c_sum + (out_u == message).all()
+        return c_sum / T
 def test_batch():
     SNR = 2
     channel = BpskAwgnChannel(1, False)
@@ -816,26 +880,38 @@ def test_batch():
 def hhh():
     print("hhh")
 
+def getSequence(seq):
+    return np.argsort(seq)
+
 if __name__ == "__main__":
-    n = 6
-    N = 2 ** n
-    R = 0.5
-    K = int(N*R)
-    SNR = 5
-    T = 100
-    # BathZ MonteCalo GA Genetic
-    # PolarTest.test_BPSK_AWGN("BathZ",N,K,SNR)
-
-    r = PolarTest.test_BPSK_AWGN_BATCH("Genetic",N,K,T,SNR)
-    print(r)
-    exit(1)
-
+    # n = 6
+    # N = 2 ** n
+    # R = 0.5
+    # K = int(N*R)
+    # SNR = 1
+    # T = 100
+    # # BathZ MonteCalo GA Genetic
+    # # PolarTest.test_BPSK_AWGN("BathZ",N,K,SNR)
+    # POP_SIZE = 50
+    # CROSS_RATE = 0.8
+    # MUTATE_RATE = 0.4
+    # # seq = Construct.Bhattacharyya(N,SNR)
+    # seq = Genetic_Alm(N,SNR,POP_SIZE,CROSS_RATE,MUTATE_RATE)
+    # sseq = getSequence(seq)
+    # r = PolarTest.test_batch(sseq,N,K,10,SNR)
+    # # r = PolarTest.test_BPSK_AWGN_BATCH("Genetic",N,K,T,SNR)
+    # print(r)
+    # exit(1)
 
     cmethods = ["BathZ","MonteCalo","GA","Genetic"]
     test_N = 128
     test_R = 0.5
     test_K = int(test_N * test_R)
-    test_T = 1
+    test_T = 10
+
+    rate = PolarTest.test_BSC_BATCH("BathZ",test_N,test_K,test_T,5)
+    print(rate)
+    exit(1)
 
     M = 1000
     SNRs = [0.5 * i for i in range(1,10)]
@@ -850,7 +926,7 @@ if __name__ == "__main__":
         y[idx] = 1 - r
     
     plt.plot(SNRs,y)
-    plt.show()
+    plt.shobest_seqw()
 
 
     # for method in cmethods:

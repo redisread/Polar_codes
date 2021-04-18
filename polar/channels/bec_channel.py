@@ -15,11 +15,14 @@ from polar.channels.channel import Channel
 class BecChannel(Channel):
     """BEC信道"""
 
-    def __init__(self, BER):
+    def __init__(self, SNR):
         """构造函数，参数为误码率，误码率等同于删除概率"""
         super().__init__()
+        BER = 1 / (1 + SNR)
         self._BER = BER
         self._erasure_prob = BER
+        self._SINR = SNR
+        self._SINR_dB = 10 * np.log10(SNR)
 
     def get_erasure_prob(self):
         """

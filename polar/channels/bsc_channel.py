@@ -14,10 +14,11 @@ from polar.channels.channel import Channel
 class BscChannel(Channel):
     """BSC信道，非对称信道"""
 
-    def __init__(self, BER):
+    def __init__(self,SNR):
         super().__init__()
+        BER = 1 / (SNR + 1)
         self._BER = BER
-
+        self._SINR = SNR
         self._erasure_prob = - (self._BER * np.log(self._BER) + (1.0 - self._BER) * np.log(1.0 - self._BER))
 
         self._zero_LLR = np.log((1 - self._BER) / self._BER)
