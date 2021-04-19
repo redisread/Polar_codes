@@ -15,7 +15,7 @@ from polar.channels.bec_channel import BecChannel
 from polar.channels.bpsk_awgn_channel import BpskAwgnChannel
 from polar.code.polar_code import PolarCode
 
-# import matplotlib.pyplot.plot
+import matplotlib.pyplot as plt
 
 class PolarGA(object):
     """遗传算法极化码构造类"""
@@ -154,44 +154,19 @@ class PolarGA(object):
         
 
 
-def test_PGA():
-    POP_SIZE = 10
-    CROSS_RATE = 0.1
-    MUTATION_RATE = 0.02
-
-    # 极化码长度的幂次
-    n = 6
-    # 极化码长度
-    N = 2 ** n
-    # 极化码的码率
-    R = 0.5
-    K = int(N * R)
-
-    # 信噪比
-    SNR = 2
-
-    # 迭代的子代数量
-    GENERATIONS = 20
-
+def test_PGA(N,K,SNR,GENERATIONS,POP_SIZE,CROSS_RATE,MUTATION_RATE):
     pga = PolarGA(N, K, SNR, POP_SIZE, CROSS_RATE, MUTATION_RATE)
-
+    # message = np.random.randint(0,2,K)
     # 开始迭代
     for generation in range(GENERATIONS):
         fitness = pga.get_fitness()
         best_DNA = pga.pop[np.argmax(fitness)]
         print("Gen ", generation, " best DNA: ", best_DNA)
-        # print("Rate:",pga.compute([3,5,6,7]))
-        # best_DNA = [0,1,2,4,3,5,6,7]
         rate = pga.compute(best_DNA)
-        # rate_z = pga.compute_z(best_DNA)
-        # rate_r = pga.compute_r(best_DNA)
         print("Rate:", rate)
         if rate == 1:
             break
         pga.evolve()
-        # print("GG")
-        # break
-        # break
 
     print("验证误码率:")
     m = 50
@@ -200,7 +175,9 @@ def test_PGA():
         rate = pga.compute(best_DNA)
         if rate == 1:
             sum = sum + 1
-    print("Rate: ", sum / m)
+    ret = sum / m
+    print("Rate: ", ret)
+    return ret
 
 
 def test_rate():
@@ -240,5 +217,25 @@ def test_rate():
 
 
 if __name__ == "__main__":
-    test_PGA()
+    n = 7
+    N = 2 ** n
+    R = 0.5
+    K = int(N * R)
+
+    # 信噪比
+    SNR = 2
+    SNRs = [i * 0.5 for i in range(1,10)]
+
+    POP_SIZE = 10
+    CROSS_RATE = 0.1
+    MUTATION_RATE = 0.02
+    # 最大迭代迭代的子代数量
+    GENERATIONS = 10
+    y = np.zeros_like(SNRs)
+    for idx,snr in enumerate(SNRs):
+        y[idx] = 1 - test_PGA(N,K,snr,GENERATIONS,POP_SIZE,CROSS_RATE,MUTATION_RATE)
+    print(y)
+    plt.plot(SNRs,y)
+    plt.grid()
+    plt.show()
     # test_rate()
