@@ -165,6 +165,7 @@ def test_PGA(N,K,SNR,GENERATIONS,POP_SIZE,CROSS_RATE,MUTATION_RATE):
         rate = pga.compute(best_DNA)
         print("Rate:", rate)
         if rate == 1:
+            return 1
             break
         pga.evolve()
 
@@ -238,4 +239,6 @@ if __name__ == "__main__":
     plt.plot(SNRs,y)
     plt.grid()
     plt.show()
+
+    # res = []
     # test_rate()
