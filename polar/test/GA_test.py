@@ -158,19 +158,21 @@ def test_PGA(N,K,SNR,GENERATIONS,POP_SIZE,CROSS_RATE,MUTATION_RATE):
     pga = PolarGA(N, K, SNR, POP_SIZE, CROSS_RATE, MUTATION_RATE)
     # message = np.random.randint(0,2,K)
     # 开始迭代
+    tmaxR = 0
     for generation in range(GENERATIONS):
         fitness = pga.get_fitness()
         best_DNA = pga.pop[np.argmax(fitness)]
         print("Gen ", generation, " best DNA: ", best_DNA)
         rate = pga.compute(best_DNA)
         print("Rate:", rate)
+        tmaxR = max(tmaxR,rate)
         if rate == 1:
             return 1
             break
         pga.evolve()
-
+    return tmaxR
     print("验证误码率:")
-    m = 50
+    m = 10
     sum = 0
     for i in range(m):
         rate = pga.compute(best_DNA)
