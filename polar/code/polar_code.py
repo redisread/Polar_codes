@@ -256,8 +256,8 @@ class PolarCode(object):
         return X
 
     def decode(self, y_message,way = 0):
-        # return self.sc_decode(y_message)
-        return self._scl_decode(y_message)
+        return self.sc_decode(y_message)
+        # return self._scl_decode(y_message)
 
     def sc_decode(self, y_message):
         """连续消除译码"""
